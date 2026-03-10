@@ -9,12 +9,12 @@ type Discoverer interface {
 }
 
 type PostgreSQLInstance struct {
-	Namespace    string
-	PodName      string
-	PodLabels    map[string]string
-	Host         string
-	Port         int
-	SecretName   string
+	Namespace  string
+	PodName    string
+	PodLabels  map[string]string
+	Host       string
+	Port       int
+	SecretName string
 }
 
 type Credentials struct {

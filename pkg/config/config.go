@@ -26,9 +26,9 @@ type DiscoveryConfig struct {
 }
 
 type VacuumConfig struct {
-	DefaultTimeout         time.Duration `json:"defaultTimeout"`
-	AnalyzeAfterVacuum     bool          `json:"analyzeAfterVacuum"`
-	MaxConcurrentVacuums   int           `json:"maxConcurrentVacuums"`
+	DefaultTimeout       time.Duration `json:"defaultTimeout"`
+	AnalyzeAfterVacuum   bool          `json:"analyzeAfterVacuum"`
+	MaxConcurrentVacuums int           `json:"maxConcurrentVacuums"`
 }
 
 type WebhookConfig struct {

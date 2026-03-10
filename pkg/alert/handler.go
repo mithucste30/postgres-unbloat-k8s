@@ -25,24 +25,24 @@ func NewHandler(disc discoverer.Discoverer, exec vacuum.Executor, dryRun bool) *
 
 func (h *AlertHandler) Handle(ctx context.Context, alert *Alert) error {
 	log.Printf("[Handler] Handling alert: %s", alert.Name)
-	
+
 	namespace := alert.GetLabel("namespace")
 	podName := alert.GetLabel("pod")
-	
+
 	if namespace == "" || podName == "" {
 		return fmt.Errorf("missing namespace or pod")
 	}
-	
+
 	instance, err := h.discoverer.FindByAlert(ctx, namespace, podName)
 	if err != nil {
 		return err
 	}
-	
+
 	creds, err := h.discoverer.GetCredentials(ctx, instance)
 	if err != nil {
 		return err
 	}
-	
+
 	db := &vacuum.Database{
 		Namespace: instance.Namespace,
 		PodName:   instance.PodName,
@@ -53,9 +53,9 @@ func (h *AlertHandler) Handle(ctx context.Context, alert *Alert) error {
 		Password:  creds.Password,
 		SSLMode:   "disable",
 	}
-	
+
 	table := alert.GetLabel("schemaname") + "." + alert.GetLabel("table")
 	opts := vacuum.Options{DryRun: h.dryRun, Analyze: true}
-	
+
 	return h.executor.VacuumAnalyze(ctx, db, table, opts)
 }

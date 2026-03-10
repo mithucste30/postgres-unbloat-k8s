@@ -25,18 +25,18 @@ func main() {
 	// Create JobExecutor
 	executor := vacuum.NewJobExecutor(
 		clientset,
-		false, // dry-run=false to actually create jobs
+		false,     // dry-run=false to actually create jobs
 		"default", // namespace where jobs will be created
 	)
 
 	// Define the target database
 	db := &vacuum.Database{
-		Host:     "postgres-postgresql.default.svc.cluster.local",
-		Port:     5432,
-		Database: "mydb",
-		Username: "postgres",
-		Password: "secret",
-		SSLMode:  "disable",
+		Host:      "postgres-postgresql.default.svc.cluster.local",
+		Port:      5432,
+		Database:  "mydb",
+		Username:  "postgres",
+		Password:  "secret",
+		SSLMode:   "disable",
 		Namespace: "default",
 		PodName:   "postgres-0",
 	}

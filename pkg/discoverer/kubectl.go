@@ -6,10 +6,10 @@ import (
 )
 
 type KubectlDiscoverer struct {
-	kubeconfig      string
-	context         string
-	namespaces      []string
-	labelSelectors  map[string]string
+	kubeconfig     string
+	context        string
+	namespaces     []string
+	labelSelectors map[string]string
 }
 
 func NewKubectlDiscoverer(kubeconfig, context string, namespaces []string, labelSelectors map[string]string) *KubectlDiscoverer {

@@ -14,10 +14,10 @@ func main() {
 
 	// Create a kubectl-based discoverer for local development
 	disc := discoverer.NewKubectlDiscoverer(
-		"/Users/kahf/.kube/config", // path to kubeconfig
-		"",                          // use current context
+		"/Users/kahf/.kube/config",      // path to kubeconfig
+		"",                              // use current context
 		[]string{"default", "database"}, // namespaces to search
-		map[string]string{           // label selectors
+		map[string]string{ // label selectors
 			"app": "postgresql",
 		},
 	)

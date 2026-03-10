@@ -16,6 +16,8 @@ type Alert struct {
 
 func (a *Alert) IsFiring() bool { return a.Status == "firing" }
 func (a *Alert) GetLabel(key string) string {
-	if a.Labels == nil { return "" }
+	if a.Labels == nil {
+		return ""
+	}
 	return a.Labels[key]
 }

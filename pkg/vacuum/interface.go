@@ -7,12 +7,12 @@ import (
 
 // Database represents a PostgreSQL database connection.
 type Database struct {
-	Host     string
-	Port     int
-	Database string
-	Username string
-	Password string
-	SSLMode  string
+	Host      string
+	Port      int
+	Database  string
+	Username  string
+	Password  string
+	SSLMode   string
 	Namespace string
 	PodName   string
 }

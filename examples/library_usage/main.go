@@ -56,12 +56,12 @@ func main() {
 
 		// Database connection info
 		db := &vacuum.Database{
-			Host:     "postgres-postgresql.default.svc.cluster.local",
-			Port:     5432,
-			Database: "myapp",
-			Username: "appuser",
-			Password: "secret",
-			SSLMode:  "disable",
+			Host:      "postgres-postgresql.default.svc.cluster.local",
+			Port:      5432,
+			Database:  "myapp",
+			Username:  "appuser",
+			Password:  "secret",
+			SSLMode:   "disable",
 			Namespace: "default",
 			PodName:   "postgres-0",
 		}
