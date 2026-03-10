@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "postgres-unbloat-k8s.fullname" . }}
+  labels:
+    {{- include "postgres-unbloat-k8s.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "postgres-unbloat-k8s.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "postgres-unbloat-k8s.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "postgres-unbloat-k8s.serviceAccountName" . }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+          - --mode={{ .Values.config.mode }}
+          - --dry-run={{ .Values.config.dryRun }}
+          - --address={{ .Values.config.server.address }}
+          - --port={{ .Values.config.server.port }}
+          - --namespace={{ .Values.config.server.namespace | default .Release.Namespace }}
+        ports:
+          - name: webhook
+            containerPort: {{ .Values.config.server.port }}
+            protocol: TCP
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
