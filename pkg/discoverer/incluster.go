@@ -256,66 +256,95 @@ func (d *InClusterDiscoverer) GetCredentials(ctx context.Context, instance *Post
 }
 
 func (d *InClusterDiscoverer) FindByAlert(ctx context.Context, namespace, podName string) (*PostgreSQLInstance, error) {
-	// Get the pod to verify it exists and get its labels
-	pod, err := d.clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get pod: %w", err)
-	}
+	// If pod name is provided, use the original logic
+	if podName != "" {
+		// Get the pod to verify it exists and get its labels
+		pod, err := d.clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get pod: %w", err)
+		}
 
-	// Find the service that selects this pod
-	services, err := d.clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list services: %w", err)
-	}
+		// Find the service that selects this pod
+		services, err := d.clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list services: %w", err)
+		}
 
-	var matchingService *corev1.Service
-	for _, svc := range services.Items {
-		// Check if this service's selector matches the pod's labels
-		if svc.Spec.Selector != nil {
-			matches := true
-			for key, value := range svc.Spec.Selector {
-				podLabelValue, ok := pod.Labels[key]
-				if !ok || podLabelValue != value {
-					matches = false
+		var matchingService *corev1.Service
+		for _, svc := range services.Items {
+			// Check if this service's selector matches the pod's labels
+			if svc.Spec.Selector != nil {
+				matches := true
+				for key, value := range svc.Spec.Selector {
+					podLabelValue, ok := pod.Labels[key]
+					if !ok || podLabelValue != value {
+						matches = false
+						break
+					}
+				}
+				if matches && len(svc.Spec.Selector) > 0 {
+					matchingService = &svc
 					break
 				}
 			}
-			if matches && len(svc.Spec.Selector) > 0 {
-				matchingService = &svc
-				break
+		}
+
+		// If no matching service found, try to derive service name from pod name
+		// Handles StatefulSet pods like postgres-postgresql-0 -> postgres-postgresql
+		if matchingService == nil {
+			// Try removing the suffix (e.g., "-0")
+			serviceName := podName
+			for i := len(podName) - 1; i >= 0; i-- {
+				if podName[i] == '-' {
+					serviceName = podName[:i]
+					break
+				}
 			}
+			_, err := d.clientset.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
+			if err == nil {
+				matchingService = &corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: serviceName,
+					},
+				}
+			}
+		}
+
+		if matchingService == nil {
+			return nil, fmt.Errorf("no service found matching pod %s", podName)
+		}
+
+		return d.createInstanceFromService(namespace, matchingService)
+	}
+
+	// If no pod name provided, try to find PostgreSQL service using label selectors
+	log.Printf("[InClusterDiscoverer] No pod provided, searching for PostgreSQL service in namespace %s", namespace)
+
+	// Try each label selector to find a PostgreSQL service
+	for _, selector := range d.labelSelectors {
+		services, err := d.clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: selector,
+		})
+		if err != nil {
+			continue
+		}
+
+		// Return the first matching service
+		if len(services.Items) > 0 {
+			svc := &services.Items[0]
+			log.Printf("[InClusterDiscoverer] Found PostgreSQL service: %s", svc.Name)
+			return d.createInstanceFromService(namespace, svc)
 		}
 	}
 
-	// If no matching service found, try to derive service name from pod name
-	// Handles StatefulSet pods like postgres-postgresql-0 -> postgres-postgresql
-	if matchingService == nil {
-		// Try removing the suffix (e.g., "-0")
-		serviceName := podName
-		for i := len(podName) - 1; i >= 0; i-- {
-			if podName[i] == '-' {
-				serviceName = podName[:i]
-				break
-			}
-		}
-		_, err := d.clientset.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
-		if err == nil {
-			matchingService = &corev1.Service{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: serviceName,
-				},
-			}
-		}
-	}
+	return nil, fmt.Errorf("no PostgreSQL service found in namespace %s", namespace)
+}
 
-	if matchingService == nil {
-		return nil, fmt.Errorf("no service found matching pod %s", podName)
-	}
-
+func (d *InClusterDiscoverer) createInstanceFromService(namespace string, svc *corev1.Service) (*PostgreSQLInstance, error) {
 	// Find PostgreSQL port
 	var pgPort int32 = 5432
-	if matchingService.Spec.Ports != nil {
-		for _, port := range matchingService.Spec.Ports {
+	if svc.Spec.Ports != nil {
+		for _, port := range svc.Spec.Ports {
 			if port.Name == "postgresql" || port.Port == 5432 {
 				pgPort = port.Port
 				break
@@ -325,8 +354,8 @@ func (d *InClusterDiscoverer) FindByAlert(ctx context.Context, namespace, podNam
 
 	return &PostgreSQLInstance{
 		Namespace: namespace,
-		PodName:   matchingService.Name,
-		Host:      fmt.Sprintf("%s.%s.svc.cluster.local", matchingService.Name, namespace),
+		PodName:   svc.Name,
+		Host:      fmt.Sprintf("%s.%s.svc.cluster.local", svc.Name, namespace),
 		Port:      int(pgPort),
 	}, nil
 }

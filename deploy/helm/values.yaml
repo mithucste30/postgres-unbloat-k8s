@@ -80,6 +80,57 @@ config:
 server:
   metricsPort: 9090
 
+monitoring:
+  enabled: false  # Enable to create Prometheus Operator resources
+  namespace: monitoring  # Namespace where Prometheus Operator is installed
+
+  # PrometheusRule configuration
+  createPrometheusRule: true
+  prometheusRule:
+    interval: 30s
+    rules:
+      - alert: PostgreSQLTableHighBloat
+        # Dead tuples > 10% and > 100 tuples
+        expr: '(pg_stat_user_tables_n_dead_tup / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) > 0.10 and pg_stat_user_tables_n_dead_tup > 100'
+        for: 5m
+        severity: warning
+        labels:
+          operator: "postgres-unbloat-k8s"
+        annotations:
+          summary: "High table bloat detected"
+          description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} in namespace {{ $labels.namespace }} has {{ $value | humanizePercentage }} dead tuples"
+
+      - alert: PostgreSQLTableCriticalBloat
+        # Dead tuples > 30% and > 500 tuples
+        expr: '(pg_stat_user_tables_n_dead_tup / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) > 0.30 and pg_stat_user_tables_n_dead_tup > 500'
+        for: 2m
+        severity: critical
+        labels:
+          operator: "postgres-unbloat-k8s"
+        annotations:
+          summary: "Critical table bloat detected"
+          description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} in namespace {{ $labels.namespace }} has {{ $value | humanizePercentage }} dead tuples - requires FULL vacuum"
+
+  # AlertmanagerConfig configuration
+  createAlertmanagerConfig: true
+  alertmanagerConfig:
+    sendResolved: true
+    groupBy:
+      - alertname
+      - namespace
+    groupWait: 10s
+    groupInterval: 5m
+    repeatInterval: 12h
+    matchers:
+      - name: alertname
+        matchType: =~
+        value: "PostgreSQL.*Bloat"
+    # Optional: HTTP client config for TLS/auth
+    # httpConfig:
+    #   bearerTokenSecret:
+    #     name: webhook-secret
+    #     key: token
+
 rbac:
   create: true
   rules:

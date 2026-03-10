@@ -1,0 +1,31 @@
+{{- if .Values.monitoring.enabled }}
+{{- if .Values.monitoring.createPrometheusRule }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "postgres-unbloat-k8s.fullname" . }}
+  namespace: {{ .Values.monitoring.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "postgres-unbloat-k8s.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monitoring
+spec:
+  groups:
+    - name: postgres-bloat-alerts
+      interval: {{ .Values.monitoring.prometheusRule.interval | default "30s" }}
+      rules:
+        {{- range .Values.monitoring.prometheusRule.rules }}
+        - alert: {{ .alert }}
+          expr: {{ .expr }}
+          for: {{ .for | default "5m" }}
+          labels:
+            severity: {{ .severity | default "warning" }}
+            {{- with .labels }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          annotations:
+            {{- with .annotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+        {{- end }}
+{{- end }}
+{{- end }}

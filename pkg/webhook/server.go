@@ -157,8 +157,18 @@ func (s *Server) processAlert(ctx context.Context, promAlert PrometheusAlert) er
 	schemaname := promAlert.Labels["schemaname"]
 	tableName := promAlert.Labels["table"]
 
-	if namespace == "" || podName == "" || schemaname == "" || tableName == "" {
-		return fmt.Errorf("missing required labels (namespace, pod, schemaname, table)")
+	// Handle both "table" and "relname" labels for compatibility
+	if tableName == "" {
+		tableName = promAlert.Labels["relname"]
+	}
+
+	if namespace == "" || schemaname == "" || tableName == "" {
+		return fmt.Errorf("missing required labels (namespace, schemaname, table/relname)")
+	}
+
+	// pod is optional - if not provided, discoverer will find the service
+	if podName == "" {
+		log.Printf("[Webhook] No pod label provided, discoverer will find PostgreSQL service")
 	}
 
 	log.Printf("[Webhook] Processing alert: %s for %s.%s", internalAlert.Name, schemaname, tableName)
