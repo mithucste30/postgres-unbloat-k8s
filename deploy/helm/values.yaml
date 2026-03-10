@@ -1,0 +1,72 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/mithucste30/postgres-unbloat-k8s
+  pullPolicy: IfNotPresent
+  tag: "0.1.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+config:
+  mode: in-cluster
+  dryRun: false
+  server:
+    address: "0.0.0.0"
+    port: 8080
+
+  discovery:
+    enabled: true
+    namespaces:
+      - default
+      - database
+    labelSelectors:
+      app: postgresql
+
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "secrets", "configmaps"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["batch"]
+      resources: ["jobs"]
+      verbs: ["get", "list", "watch", "create", "delete"]
