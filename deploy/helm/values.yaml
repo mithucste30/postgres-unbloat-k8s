@@ -84,7 +84,7 @@ monitoring:
   enabled: false  # Enable to create Prometheus Operator resources
   namespace: monitoring  # Namespace where Prometheus Operator is installed
 
-  # PrometheusRule configuration
+  # PrometheusRule configuration (enables automatic alert generation)
   createPrometheusRule: true
   prometheusRule:
     interval: 30s
@@ -111,8 +111,8 @@ monitoring:
           summary: "Critical table bloat detected"
           description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} in namespace {{ $labels.namespace }} has {{ $value | humanizePercentage }} dead tuples - requires FULL vacuum"
 
-  # AlertmanagerConfig configuration
-  createAlertmanagerConfig: true
+  # AlertmanagerConfig configuration (enables automatic webhook routing)
+  createAlertmanagerConfig: false  # Disabled by default - set to true to enable automatic routing
   alertmanagerConfig:
     sendResolved: true
     groupBy:
