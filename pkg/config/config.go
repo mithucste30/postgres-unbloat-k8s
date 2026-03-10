@@ -44,11 +44,11 @@ type LoggingConfig struct {
 }
 
 type KubernetesConfig struct {
-	Kubeconfig          string `json:"kubeconfig"`
-	Context             string `json:"context"`
-	Namespace           string `json:"namespace"`
-	InClusterNamespace  string `json:"inClusterNamespace"`
-	InCluster           bool   `json:"inCluster"`
+	Kubeconfig         string `json:"kubeconfig"`
+	Context            string `json:"context"`
+	Namespace          string `json:"namespace"`
+	InClusterNamespace string `json:"inClusterNamespace"`
+	InCluster          bool   `json:"inCluster"`
 }
 
 func DefaultConfig() *Config {

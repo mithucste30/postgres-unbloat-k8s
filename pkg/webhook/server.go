@@ -73,16 +73,16 @@ type PrometheusAlert struct {
 
 // PrometheusWebhookPayload represents the full webhook payload from Alertmanager
 type PrometheusWebhookPayload struct {
-	Receiver          string             `json:"receiver"`
-	Status            string             `json:"status"`
-	Alerts            []PrometheusAlert  `json:"alerts"`
+	Receiver          string            `json:"receiver"`
+	Status            string            `json:"status"`
+	Alerts            []PrometheusAlert `json:"alerts"`
 	GroupLabels       map[string]string `json:"groupLabels"`
 	CommonLabels      map[string]string `json:"commonLabels"`
 	CommonAnnotations map[string]string `json:"commonAnnotations"`
-	ExternalURL       string             `json:"externalURL"`
-	Version           string             `json:"version"`
-	GroupKey          string             `json:"groupKey"`
-	TruncatedAlerts   int                `json:"truncatedAlerts"`
+	ExternalURL       string            `json:"externalURL"`
+	Version           string            `json:"version"`
+	GroupKey          string            `json:"groupKey"`
+	TruncatedAlerts   int               `json:"truncatedAlerts"`
 }
 
 func (s *Server) handleWebhook(w http.ResponseWriter, r *http.Request) {

@@ -97,8 +97,8 @@ func (e *JobExecutor) ExecuteVacuumJob(ctx context.Context, db *Database, alert 
 	}
 
 	log.Printf("[JOB] Creating vacuum job: %s", jobName)
-	log.Printf("[JOB] Target: %s@%s:%d/%s", logPrefix, db.Username, db.Host, db.Port, db.Database)
-	log.Printf("[JOB] SQL: %s", logPrefix, sql)
+	log.Printf("[JOB] Target: %s@%s:%d/%s", db.Username, db.Host, db.Port, db.Database)
+	log.Printf("[JOB] SQL: %s", sql)
 
 	created, err := e.clientset.BatchV1().Jobs(e.defaultNS).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {

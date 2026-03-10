@@ -89,27 +89,65 @@ monitoring:
   prometheusRule:
     interval: 30s
     rules:
+      # High Bloat: Table has >10% bloat and >10000 dead tuples
       - alert: PostgreSQLTableHighBloat
-        # Dead tuples > 10% and > 100 tuples
-        expr: '(pg_stat_user_tables_n_dead_tup / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) > 0.10 and pg_stat_user_tables_n_dead_tup > 100'
+        expr: '(pg_stat_user_tables_n_dead_tup / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) > 0.10 and pg_stat_user_tables_n_dead_tup > 10000'
         for: 5m
         severity: warning
         labels:
           operator: "postgres-unbloat-k8s"
+          alert_type: "bloat"
         annotations:
-          summary: "High table bloat detected"
-          description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} in namespace {{ $labels.namespace }} has {{ $value | humanizePercentage }} dead tuples"
+          summary: "PostgreSQL table {{ $labels.relname }} has high bloat"
+          description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} has {{ $value | humanizePercentage }} dead tuples. Database: {{ $labels.namespace }}"
 
+      # Critical Bloat: Table has >30% bloat
       - alert: PostgreSQLTableCriticalBloat
-        # Dead tuples > 30% and > 500 tuples
-        expr: '(pg_stat_user_tables_n_dead_tup / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) > 0.30 and pg_stat_user_tables_n_dead_tup > 500'
-        for: 2m
+        expr: '(pg_stat_user_tables_n_dead_tup / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) > 0.30'
+        for: 5m
         severity: critical
         labels:
           operator: "postgres-unbloat-k8s"
+          alert_type: "bloat"
         annotations:
-          summary: "Critical table bloat detected"
-          description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} in namespace {{ $labels.namespace }} has {{ $value | humanizePercentage }} dead tuples - requires FULL vacuum"
+          summary: "PostgreSQL table {{ $labels.relname }} has CRITICAL bloat"
+          description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} has {{ $value | humanizePercentage }} dead tuples (CRITICAL). Database: {{ $labels.namespace }}. Action: Consider manual VACUUM immediately."
+
+      # Not Vacuumed: Table hasn't been vacuumed in 24 hours
+      - alert: PostgreSQLTableNotVacuumed
+        expr: '(time() - pg_stat_user_tables_last_autovacuum) > 86400 and pg_stat_user_tables_n_dead_tup > 1000'
+        for: 10m
+        severity: warning
+        labels:
+          operator: "postgres-unbloat-k8s"
+          alert_type: "vacuum"
+        annotations:
+          summary: "PostgreSQL table {{ $labels.relname }} hasn't been vacuumed recently"
+          description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} hasn't been autovacuumed in over 24 hours. Database: {{ $labels.namespace }}"
+
+      # Large Table Bloat: Large table (>100MB) has >20% bloat
+      - alert: PostgreSQLLargeTableBloat
+        expr: '(pg_stat_user_tables_n_dead_tup / (pg_stat_user_tables_n_live_tup + pg_stat_user_tables_n_dead_tup)) > 0.20 and pg_total_relation_size(schemaname||"."||relname) > 100000000'
+        for: 10m
+        severity: critical
+        labels:
+          operator: "postgres-unbloat-k8s"
+          alert_type: "bloat"
+        annotations:
+          summary: "Large PostgreSQL table {{ $labels.relname }} has significant bloat"
+          description: "Large table {{ $labels.schemaname }}.{{ $labels.relname }} has {{ $value | humanizePercentage }} bloat. This impacts performance significantly. Action: Schedule maintenance window for VACUUM FULL."
+
+      # Never Vacuumed: Table has never been autovacuumed and has dead tuples
+      - alert: PostgreSQLTableNeverVacuumed
+        expr: 'pg_stat_user_tables_last_autovacuum == 0 and pg_stat_user_tables_n_dead_tup > 500'
+        for: 1h
+        severity: info
+        labels:
+          operator: "postgres-unbloat-k8s"
+          alert_type: "vacuum"
+        annotations:
+          summary: "PostgreSQL table {{ $labels.relname }} has never been autovacuumed"
+          description: "Table {{ $labels.schemaname }}.{{ $labels.relname }} has never been autovacuumed. Dead tuples: {{ $labels.n_dead_tup }}. Database: {{ $labels.namespace }}"
 
   # AlertmanagerConfig configuration (enables automatic webhook routing)
   createAlertmanagerConfig: false  # Disabled by default - set to true to enable automatic routing
@@ -121,10 +159,11 @@ monitoring:
     groupWait: 10s
     groupInterval: 5m
     repeatInterval: 12h
+    # Match ALL postgres-unbloat-k8s alerts
     matchers:
-      - name: alertname
-        matchType: =~
-        value: "PostgreSQL.*Bloat"
+      - name: operator
+        matchType: =
+        value: "postgres-unbloat-k8s"
     # Optional: HTTP client config for TLS/auth
     # httpConfig:
     #   bearerTokenSecret:
