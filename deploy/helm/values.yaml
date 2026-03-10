@@ -48,24 +48,43 @@ affinity: {}
 
 config:
   mode: in-cluster
-  dryRun: false
-  server:
-    address: "0.0.0.0"
-    port: 8080
+  dryRun: false  # Set to false for actual vacuum execution
+  kubernetes:
+    namespace: ""
+    inClusterNamespace: "postgres-test"
+    inCluster: true
 
   discovery:
     enabled: true
     namespaces:
-      - default
-      - database
+      - "*"  # Scan all namespaces by default
     labelSelectors:
+      app.kubernetes.io/name: postgresql
       app: postgresql
+      app.kubernetes.io/instance: postgres
+      app: postgres
+      role: database
+      cnpg.io/cluster: ""
+      cnpg.io/instanceName: ""
+      cnpg.io/podRole: instance
+
+  webhook:
+    enabled: true
+    port: 8080
+    path: /webhook
+    secret: ""  # Set to secure webhook endpoint
+
+  logging:
+    level: info
+
+server:
+  metricsPort: 9090
 
 rbac:
   create: true
   rules:
     - apiGroups: [""]
-      resources: ["pods", "secrets", "configmaps"]
+      resources: ["pods", "secrets", "configmaps", "services", "namespaces"]
       verbs: ["get", "list", "watch"]
     - apiGroups: ["batch"]
       resources: ["jobs"]

@@ -3,13 +3,19 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/mithucste30/postgres-unbloat-k8s/pkg/alert"
 	"github.com/mithucste30/postgres-unbloat-k8s/pkg/config"
 	"github.com/mithucste30/postgres-unbloat-k8s/pkg/discoverer"
+	"github.com/mithucste30/postgres-unbloat-k8s/pkg/vacuum"
+	"github.com/mithucste30/postgres-unbloat-k8s/pkg/webhook"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -26,6 +32,8 @@ func main() {
 	namespace := flag.String("namespace", cfg.Kubernetes.Namespace, "Namespace for jobs")
 	kubeconfig := flag.String("kubeconfig", cfg.Kubernetes.Kubeconfig, "Path to kubeconfig")
 	logLevel := flag.String("log-level", cfg.Logging.Level, "Log level")
+	webhookPort := flag.Int("webhook-port", cfg.Webhook.Port, "Webhook server port")
+	webhookPath := flag.String("webhook-path", cfg.Webhook.Path, "Webhook server path")
 
 	flag.Parse()
 
@@ -34,6 +42,8 @@ func main() {
 	cfg.Kubernetes.Namespace = *namespace
 	cfg.Kubernetes.Kubeconfig = *kubeconfig
 	cfg.Logging.Level = *logLevel
+	cfg.Webhook.Port = *webhookPort
+	cfg.Webhook.Path = *webhookPath
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -43,16 +53,51 @@ func main() {
 		log.Fatalf("Failed to create Kubernetes client: %v", err)
 	}
 
-	disc := discoverer.NewKubectlDiscoverer(
-		cfg.Kubernetes.Kubeconfig,
-		cfg.Kubernetes.Context,
-		cfg.Discovery.Namespaces,
-		cfg.Discovery.LabelSelectors,
-	)
+	// Initialize discoverer
+	var disc discoverer.Discoverer
+	if cfg.Server.Mode == "in-cluster" {
+		disc = discoverer.NewInClusterDiscoverer(
+			k8sClient,
+			cfg.Discovery.Namespaces,
+			cfg.Discovery.LabelSelectors,
+		)
+	} else {
+		disc = discoverer.NewKubectlDiscoverer(
+			cfg.Kubernetes.Kubeconfig,
+			cfg.Kubernetes.Context,
+			cfg.Discovery.Namespaces,
+			cfg.Discovery.LabelSelectors,
+		)
+	}
 
-	// TODO: Implement webhook handler
-	_ = k8sClient // Will be used by webhook handler
+	// Initialize vacuum executor
+	jobNamespace := cfg.Kubernetes.Namespace
+	if jobNamespace == "" {
+		jobNamespace = cfg.Kubernetes.InClusterNamespace
+	}
+	executor := vacuum.NewJobExecutor(k8sClient, cfg.Server.DryRun, jobNamespace)
 
+	// Initialize alert handler
+	handler := alert.NewHandler(disc, executor, cfg.Server.DryRun)
+
+	// Start webhook server in background
+	if cfg.Webhook.Enabled {
+		go func() {
+			webhookServer := webhook.NewServer(
+				handler,
+				cfg.Webhook.Port,
+				cfg.Webhook.Path,
+				cfg.Webhook.Secret,
+			)
+			if err := webhookServer.Start(); err != nil {
+				log.Printf("Webhook server error: %v", err)
+			}
+		}()
+	} else {
+		log.Println("Webhook server disabled (config.webhook.enabled = false)")
+	}
+
+	// Perform initial discovery
 	instances, err := disc.DiscoverPostgreSQL(ctx)
 	if err != nil {
 		log.Printf("Warning: Discovery failed: %v", err)
@@ -63,6 +108,21 @@ func main() {
 		}
 	}
 
+	// Health check endpoint
+	if cfg.Webhook.Enabled {
+		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+		})
+		go func() {
+			metricsPort := fmt.Sprintf("%d", cfg.Server.MetricsPort)
+			log.Printf("Health check server on :%s", metricsPort)
+			if err := http.ListenAndServe(":"+metricsPort, nil); err != nil {
+				log.Printf("Health check server error: %v", err)
+			}
+		}()
+	}
+
 	log.Println("System ready. Press Ctrl+C to exit.")
 
 	sigChan := make(chan os.Signal, 1)
@@ -70,6 +130,8 @@ func main() {
 	<-sigChan
 
 	log.Println("Shutting down...")
+	cancel()
+	time.Sleep(2 * time.Second) // Graceful shutdown
 }
 
 func createKubernetesClient(cfg *config.Config) (*kubernetes.Clientset, error) {

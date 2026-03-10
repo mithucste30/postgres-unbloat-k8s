@@ -33,6 +33,7 @@ type VacuumConfig struct {
 
 type WebhookConfig struct {
 	Enabled bool   `json:"enabled"`
+	Port    int    `json:"port"`
 	Path    string `json:"path"`
 	Secret  string `json:"secret"`
 }
@@ -43,10 +44,11 @@ type LoggingConfig struct {
 }
 
 type KubernetesConfig struct {
-	Kubeconfig string `json:"kubeconfig"`
-	Context    string `json:"context"`
-	Namespace  string `json:"namespace"`
-	InCluster  bool   `json:"inCluster"`
+	Kubeconfig          string `json:"kubeconfig"`
+	Context             string `json:"context"`
+	Namespace           string `json:"namespace"`
+	InClusterNamespace  string `json:"inClusterNamespace"`
+	InCluster           bool   `json:"inCluster"`
 }
 
 func DefaultConfig() *Config {
@@ -60,9 +62,12 @@ func DefaultConfig() *Config {
 		},
 		Discovery: DiscoveryConfig{
 			Enabled:    true,
-			Namespaces: []string{"default", "database", "monitoring"},
+			Namespaces: []string{"*"}, // Scan all namespaces by default
 			LabelSelectors: map[string]string{
-				"app": "postgresql",
+				"app.kubernetes.io/name": "postgresql",
+				"app":                    "postgresql",
+				"cnpg.io/cluster":        "",
+				"role":                   "database",
 			},
 		},
 		Vacuum: VacuumConfig{
@@ -72,6 +77,7 @@ func DefaultConfig() *Config {
 		},
 		Webhook: WebhookConfig{
 			Enabled: true,
+			Port:    8080,
 			Path:    "/webhook",
 		},
 		Logging: LoggingConfig{
@@ -79,7 +85,9 @@ func DefaultConfig() *Config {
 			Format: "json",
 		},
 		Kubernetes: KubernetesConfig{
-			InCluster: false,
+			Namespace:          "default",
+			InClusterNamespace: "default",
+			InCluster:          false,
 		},
 	}
 }

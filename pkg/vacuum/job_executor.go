@@ -97,8 +97,8 @@ func (e *JobExecutor) ExecuteVacuumJob(ctx context.Context, db *Database, alert 
 	}
 
 	log.Printf("[JOB] Creating vacuum job: %s", jobName)
-	log.Printf("[JOB] Target: %s@%s:%d/%s", db.Username, db.Host, db.Port, db.Database)
-	log.Printf("[JOB] SQL: %s", sql)
+	log.Printf("[JOB] Target: %s@%s:%d/%s", logPrefix, db.Username, db.Host, db.Port, db.Database)
+	log.Printf("[JOB] SQL: %s", logPrefix, sql)
 
 	created, err := e.clientset.BatchV1().Jobs(e.defaultNS).Create(ctx, job, metav1.CreateOptions{})
 	if err != nil {
@@ -107,6 +107,75 @@ func (e *JobExecutor) ExecuteVacuumJob(ctx context.Context, db *Database, alert 
 
 	log.Printf("[JOB] Job created successfully: %s", created.Name)
 	return created, nil
+}
+
+// Vacuum implements the Executor interface - creates a vacuum job
+func (e *JobExecutor) Vacuum(ctx context.Context, db *Database, table string, opts Options) error {
+	alert := &Alert{
+		Name:     "PostgreSQLTableHighBloat",
+		Severity: "warning",
+		Labels: map[string]string{
+			"namespace":  db.Namespace,
+			"pod":        db.PodName,
+			"schemaname": parseSchema(table),
+			"table":      parseTable(table),
+		},
+	}
+
+	_, err := e.ExecuteVacuumJob(ctx, db, alert)
+	return err
+}
+
+// Analyze implements the Executor interface - creates an analyze job
+func (e *JobExecutor) Analyze(ctx context.Context, db *Database, table string) error {
+	alert := &Alert{
+		Name:     "PostgreSQLTableAnalysis",
+		Severity: "info",
+		Labels: map[string]string{
+			"namespace":  db.Namespace,
+			"pod":        db.PodName,
+			"schemaname": parseSchema(table),
+			"table":      parseTable(table),
+		},
+	}
+
+	_, err := e.ExecuteVacuumJob(ctx, db, alert)
+	return err
+}
+
+// VacuumAnalyze implements the Executor interface - creates a vacuum analyze job
+func (e *JobExecutor) VacuumAnalyze(ctx context.Context, db *Database, table string, opts Options) error {
+	alert := &Alert{
+		Name:     "PostgreSQLTableHighBloat",
+		Severity: "warning",
+		Labels: map[string]string{
+			"namespace":  db.Namespace,
+			"pod":        db.PodName,
+			"schemaname": parseSchema(table),
+			"table":      parseTable(table),
+		},
+	}
+
+	_, err := e.ExecuteVacuumJob(ctx, db, alert)
+	return err
+}
+
+// parseSchema extracts schema name from "schema.table" format
+func parseSchema(table string) string {
+	parts := strings.Split(table, ".")
+	if len(parts) == 2 {
+		return parts[0]
+	}
+	return "public"
+}
+
+// parseTable extracts table name from "schema.table" format
+func parseTable(table string) string {
+	parts := strings.Split(table, ".")
+	if len(parts) == 2 {
+		return parts[1]
+	}
+	return table
 }
 
 func (e *JobExecutor) buildVacuumSQLFromAlert(table string, alert *Alert) string {

@@ -24,14 +24,18 @@ spec:
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
-          - --mode={{ .Values.config.mode }}
+          - --mode=in-cluster
           - --dry-run={{ .Values.config.dryRun }}
-          - --address={{ .Values.config.server.address }}
-          - --port={{ .Values.config.server.port }}
-          - --namespace={{ .Values.config.server.namespace | default .Release.Namespace }}
+          - --namespace={{ .Values.config.kubernetes.namespace | default .Release.Namespace }}
+          - --log-level={{ .Values.config.logging.level | default "info" }}
+          - --webhook-port={{ .Values.config.webhook.port | default 8080 }}
+          - --webhook-path={{ .Values.config.webhook.path | default "/webhook" }}
         ports:
           - name: webhook
-            containerPort: {{ .Values.config.server.port }}
+            containerPort: {{ .Values.config.webhook.port | default 8080 }}
+            protocol: TCP
+          - name: metrics
+            containerPort: {{ .Values.server.metricsPort | default 9090 }}
             protocol: TCP
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
