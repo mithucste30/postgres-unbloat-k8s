@@ -1,6 +1,6 @@
 {{- if .Values.monitoring.enabled }}
 {{- if .Values.monitoring.createAlertmanagerConfig }}
-apiVersion: monitoring.coreos.com/v1
+apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
   name: {{ include "postgres-unbloat-k8s.fullname" . }}
