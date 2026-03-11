@@ -65,14 +65,13 @@ func DefaultConfig() *Config {
 			Namespaces: []string{"*"}, // Scan all namespaces by default
 			LabelSelectors: map[string]string{
 				// Standard PostgreSQL labels
-				"app.kubernetes.io/name": "postgresql",
-				"app":                    "postgresql",
+				"app.kubernetes.io/name":     "postgresql",
+				"app":                        "postgresql",
 				"app.kubernetes.io/instance": "postgres",
-				"app":                    "postgres",
-				"role":                   "database",
+				"role":                       "database",
 				// CloudNativePG labels (presence-based - empty values match any)
-				"cnpg.io/cluster":        "",
-				"cnpg.io/instanceName":   "",
+				"cnpg.io/cluster":      "",
+				"cnpg.io/instanceName": "",
 				// Generic database label
 				"app.kubernetes.io/component": "database",
 			},
