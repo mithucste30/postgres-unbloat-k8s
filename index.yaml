@@ -3,9 +3,9 @@ entries:
   postgres-unbloat-k8s:
   - apiVersion: v2
     appVersion: 0.6.2
-    created: "2026-03-11T05:30:12.37560025Z"
+    created: "2026-03-11T05:33:03.014455206Z"
     description: Automated PostgreSQL bloat remediation for Kubernetes
-    digest: a6ccb888342a9d2d35b37455036d93ba373b426841fece64ff615baf28be7513
+    digest: 188b5d0aa2a3a8c13471972a549b5c695e38553fcc3501fffd6bfd541ce9dafd
     home: https://github.com/mithucste30/postgres-unbloat-k8s
     keywords:
     - postgresql
@@ -19,4 +19,4 @@ entries:
     urls:
     - https://mithucste30.github.io/postgres-unbloat-k8s/postgres-unbloat-k8s-0.6.2.tgz
     version: 0.6.2
-generated: "2026-03-11T05:30:12.374753677Z"
+generated: "2026-03-11T05:33:03.013606126Z"
