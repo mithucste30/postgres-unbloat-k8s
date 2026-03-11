@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,12 +84,33 @@ func (d *InClusterDiscoverer) DiscoverPostgreSQL(ctx context.Context) ([]*Postgr
 				if seen[key] {
 					continue
 				}
-				seen[key] = true
 
 				if svc.Spec.Type != corev1.ServiceTypeClusterIP {
 					log.Printf("[InClusterDiscoverer] Skipping service %s/%s (not ClusterIP)", ns, svc.Name)
 					continue
 				}
+
+				// Filter out read-only/replica services for CNPG
+				// CNPG labels: cnpg.io/instanceRole: "primary" | "replica"
+				if role, ok := svc.Spec.Selector["cnpg.io/instanceRole"]; ok {
+					if role == "replica" {
+						log.Printf("[InClusterDiscoverer] Skipping service %s/%s (read-only replica)", ns, svc.Name)
+						continue
+					}
+					// Only accept primary instances
+					if role != "primary" {
+						log.Printf("[InClusterDiscoverer] Skipping service %s/%s (not primary, role=%s)", ns, svc.Name, role)
+						continue
+					}
+				}
+
+				// Also filter out services ending with -ro or -r (CNPG naming convention)
+				if strings.HasSuffix(svc.Name, "-ro") || strings.HasSuffix(svc.Name, "-r") {
+					log.Printf("[InClusterDiscoverer] Skipping service %s/%s (read-only by naming convention)", ns, svc.Name)
+					continue
+				}
+
+				seen[key] = true
 
 				// Find PostgreSQL port
 				var pgPort int32 = 5432
