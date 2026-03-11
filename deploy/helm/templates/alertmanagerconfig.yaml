@@ -11,22 +11,22 @@ metadata:
 spec:
   receivers:
     - name: {{ include "postgres-unbloat-k8s.fullname" . }}
-      webhook_configs:
+      webhookConfigs:
         - url: 'http://{{ include "postgres-unbloat-k8s.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.config.webhook.port | default 8080 }}{{ .Values.config.webhook.path | default "/webhook" }}'
-          send_resolved: {{ .Values.monitoring.alertmanagerConfig.sendResolved | default true }}
+          sendResolved: {{ .Values.monitoring.alertmanagerConfig.sendResolved | default true }}
           {{- with .Values.monitoring.alertmanagerConfig.httpConfig }}
-          http_config: {{ toYaml . | nindent 12 }}
+          httpConfig: {{ toYaml . | nindent 12 }}
           {{- end }}
   route:
     receiver: {{ include "postgres-unbloat-k8s.fullname" . }}
-    group_by: {{ .Values.monitoring.alertmanagerConfig.groupBy | default list "alertname" "namespace" | toJson }}
-    group_wait: {{ .Values.monitoring.alertmanagerConfig.groupWait | default "10s" }}
-    group_interval: {{ .Values.monitoring.alertmanagerConfig.groupInterval | default "5m" }}
-    repeat_interval: {{ .Values.monitoring.alertmanagerConfig.repeatInterval | default "12h" }}
+    groupBy: {{ .Values.monitoring.alertmanagerConfig.groupBy | default list "alertname" "namespace" | toJson }}
+    groupWait: {{ .Values.monitoring.alertmanagerConfig.groupWait | default "10s" }}
+    groupInterval: {{ .Values.monitoring.alertmanagerConfig.groupInterval | default "5m" }}
+    repeatInterval: {{ .Values.monitoring.alertmanagerConfig.repeatInterval | default "12h" }}
     matchers:
       {{- range .Values.monitoring.alertmanagerConfig.matchers }}
       - name: {{ .name }}
-        match_type: {{ .matchType | default "=" }}
+        matchType: {{ .matchType | default "=" }}
         value: {{ .value | quote }}
       {{- end }}
 {{- end }}
