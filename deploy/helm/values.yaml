@@ -3,7 +3,8 @@ replicaCount: 1
 image:
   repository: ghcr.io/mithucste30/postgres-unbloat-k8s
   pullPolicy: IfNotPresent
-  tag: "v0.6.0"  # Use latest release tag
+  # tag is automatically set from Chart.appVersion (e.g., "0.6.0" -> image tag "v0.6.0")
+  # Override only if needed: tag: "custom-tag"
 
 imagePullSecrets: []
 nameOverride: ""

@@ -21,7 +21,7 @@ spec:
       serviceAccountName: {{ include "postgres-unbloat-k8s.serviceAccountName" . }}
       containers:
       - name: {{ .Chart.Name }}
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (print "v" .Chart.AppVersion) }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
           - --mode=in-cluster
