@@ -19,7 +19,14 @@ spec:
           {{- end }}
   route:
     receiver: {{ include "postgres-unbloat-k8s.fullname" . }}
-    groupBy: {{ .Values.monitoring.alertmanagerConfig.groupBy | default list "alertname" "namespace" | toYaml | nindent 4 }}
+{{- if .Values.monitoring.alertmanagerConfig.groupBy }}
+    groupBy:
+{{ toYaml .Values.monitoring.alertmanagerConfig.groupBy | nindent 4 }}
+{{- else }}
+    groupBy:
+      - alertname
+      - namespace
+{{- end }}
     groupWait: {{ .Values.monitoring.alertmanagerConfig.groupWait | default "10s" }}
     groupInterval: {{ .Values.monitoring.alertmanagerConfig.groupInterval | default "5m" }}
     repeatInterval: {{ .Values.monitoring.alertmanagerConfig.repeatInterval | default "12h" }}
