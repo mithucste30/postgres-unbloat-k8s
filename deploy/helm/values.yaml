@@ -60,14 +60,17 @@ config:
     namespaces:
       - "*"  # Scan all namespaces by default
     labelSelectors:
+      # Standard PostgreSQL labels (exact match)
       app.kubernetes.io/name: postgresql
       app: postgresql
       app.kubernetes.io/instance: postgres
       app: postgres
       role: database
+      # CloudNativePG labels (presence-based - empty values match any value)
       cnpg.io/cluster: ""
       cnpg.io/instanceName: ""
-      cnpg.io/podRole: instance
+      # Generic database label
+      app.kubernetes.io/component: database
 
   webhook:
     enabled: true

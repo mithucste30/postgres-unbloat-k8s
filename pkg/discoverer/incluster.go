@@ -21,11 +21,13 @@ func NewInClusterDiscoverer(clientset *kubernetes.Clientset, namespaces []string
 	// This allows OR logic - we'll try each selector separately
 	var selectors []string
 	for key, value := range labelSelectors {
-		// Skip empty values (presence-only selectors)
+		// Empty values mean "presence-only" selector (label key exists regardless of value)
+		// This is needed for CNPG labels like cnpg.io/cluster
 		if value == "" {
-			continue
+			selectors = append(selectors, key) // Presence-based selector
+		} else {
+			selectors = append(selectors, fmt.Sprintf("%s=%s", key, value)) // Exact match
 		}
-		selectors = append(selectors, fmt.Sprintf("%s=%s", key, value))
 	}
 
 	return &InClusterDiscoverer{
